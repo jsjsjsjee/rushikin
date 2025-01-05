@@ -2,19 +2,19 @@ from flask import Flask, request, render_template
 import wikipediaapi
 import wikipedia
 import time
-import os  # Add this for environment variables
+import os
 
 app = Flask(__name__)
 
 def fetch_wikipedia_data(topic):
     """Fetches detailed information and images about a topic from Wikipedia."""
     try:
-        # Set up Wikipedia API with user agent
-        user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        # Set up Wikipedia API with correct user agent format
+        user_agent = "RushikSearch/1.0 (rushiksearch@example.com)"
         wiki_wiki = wikipediaapi.Wikipedia(
-            language='en',
+            'en',  # language
             extract_format=wikipediaapi.ExtractFormat.WIKI,
-            user_agent=user_agent
+            headers={'User-Agent': user_agent}  # Correct way to set user agent
         )
         
         try:
@@ -32,16 +32,29 @@ def fetch_wikipedia_data(topic):
             # Get text content
             text = page.text[:10000] + "..." if page.text else "No content available."
             
-            # Get images
-            wikipedia.set_user_agent(user_agent)
-            wiki_page = wikipedia.page(topic, auto_suggest=True, preload=False)
-            
-            # Filter images
-            images = [
-                img for img in wiki_page.images
-                if any(img.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif'])
-                and not img.lower().endswith('.svg')
-            ][:5]
+            # Get images with retry mechanism
+            max_retries = 3
+            images = []
+            for attempt in range(max_retries):
+                try:
+                    # Set user agent for wikipedia package
+                    wikipedia.set_user_agent(user_agent)
+                    wiki_page = wikipedia.page(topic, auto_suggest=True)
+                    
+                    # Filter images
+                    images = [
+                        img for img in wiki_page.images
+                        if any(img.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif'])
+                        and not img.lower().endswith('.svg')
+                    ][:5]
+                    break
+                except wikipedia.exceptions.PageError:
+                    print(f"Page not found for '{topic}'")
+                    break
+                except Exception as e:
+                    print(f"Attempt {attempt + 1} failed: {e}")
+                    if attempt < max_retries - 1:
+                        time.sleep(1)
             
             return {
                 "text": text,
@@ -95,6 +108,6 @@ def index():
     return render_template('index.html')
 
 if __name__ == '__main__':
-    # Use environment variables for configuration
-    port = int(os.environ.get('PORT', 5000))
+    # Get port from environment variable or default to 10000
+    port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)

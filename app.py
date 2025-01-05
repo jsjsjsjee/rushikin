@@ -1,7 +1,8 @@
 from flask import Flask, request, render_template
 import wikipediaapi
 import wikipedia
-import time  # Add this for rate limiting
+import time
+import os  # Add this for environment variables
 
 app = Flask(__name__)
 
@@ -9,83 +10,72 @@ def fetch_wikipedia_data(topic):
     """Fetches detailed information and images about a topic from Wikipedia."""
     try:
         # Set up Wikipedia API with user agent
-        user_agent = "WikipediaSearchApp/1.0 (your-email@example.com)"  # Change this to your email
+        user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         wiki_wiki = wikipediaapi.Wikipedia(
             language='en',
             extract_format=wikipediaapi.ExtractFormat.WIKI,
             user_agent=user_agent
         )
         
-        # Search for the page with better error handling
         try:
+            # First try direct page access
             page = wiki_wiki.page(topic)
-            if not page.exists():
-                # Try searching with Wikipedia's search function
-                try:
-                    search_results = wikipedia.search(topic)
-                    if search_results:
-                        topic = search_results[0]  # Use the first search result
-                        page = wiki_wiki.page(topic)
-                    else:
-                        return {"text": f"No information found for '{topic}'.", "images": []}
-                except Exception as e:
-                    print(f"Search error: {e}")
-                    return {"text": f"No information found for '{topic}'.", "images": []}
-        except Exception as e:
-            print(f"Page fetch error: {e}")
-            return {"text": f"Error fetching information for '{topic}'.", "images": []}
-
-        # Get the page text with better formatting
-        try:
-            text = page.text[:10000]
-            if text:
-                text = text + "..."
-            else:
-                text = "No text content available."
-        except Exception as e:
-            print(f"Text processing error: {e}")
-            text = "Error processing text content."
-
-        # Fetch images with better error handling
-        images = []
-        try:
-            wikipedia.set_user_agent(user_agent)
-            time.sleep(1)  # Add small delay to prevent rate limiting
-            wiki_page = wikipedia.page(topic, auto_suggest=False)
             
-            # Filter for valid image URLs
+            if not page.exists():
+                # Try Wikipedia search
+                search_results = wikipedia.search(topic, results=1)
+                if search_results:
+                    page = wiki_wiki.page(search_results[0])
+                else:
+                    return {"text": f"No information found for '{topic}'.", "images": []}
+            
+            # Get text content
+            text = page.text[:10000] + "..." if page.text else "No content available."
+            
+            # Get images
+            wikipedia.set_user_agent(user_agent)
+            wiki_page = wikipedia.page(topic, auto_suggest=True, preload=False)
+            
+            # Filter images
             images = [
                 img for img in wiki_page.images
                 if any(img.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif'])
                 and not img.lower().endswith('.svg')
-                and ('commons' in img.lower() or 'wikipedia' in img.lower())
-            ][:5]  # Limit to 5 images
+            ][:5]
+            
+            return {
+                "text": text,
+                "images": images
+            }
             
         except wikipedia.exceptions.DisambiguationError as e:
-            print(f"Disambiguation error: {e}")
-            # Try to use the first suggestion
+            # Handle disambiguation pages
             try:
-                wiki_page = wikipedia.page(e.options[0], auto_suggest=False)
+                first_option = e.options[0]
+                page = wiki_wiki.page(first_option)
+                text = page.text[:10000] + "..."
+                
+                wiki_page = wikipedia.page(first_option, auto_suggest=False)
                 images = [
                     img for img in wiki_page.images
                     if any(img.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif'])
                     and not img.lower().endswith('.svg')
-                    and ('commons' in img.lower() or 'wikipedia' in img.lower())
                 ][:5]
-            except Exception as sub_e:
-                print(f"Sub-error in disambiguation handling: {sub_e}")
                 
-        except Exception as e:
-            print(f"Image fetch error: {e}")
-        
-        return {
-            "text": text,
-            "images": images
-        }
-    
+                return {
+                    "text": text,
+                    "images": images
+                }
+            except Exception as sub_e:
+                print(f"Disambiguation handling error: {sub_e}")
+                return {"text": f"Multiple topics found for '{topic}'. Please be more specific.", "images": []}
+                
+        except wikipedia.exceptions.PageError:
+            return {"text": f"No information found for '{topic}'.", "images": []}
+            
     except Exception as e:
-        print(f"Main error in fetch_wikipedia_data: {e}")
-        return {"text": "An error occurred while fetching data.", "images": []}
+        print(f"Error in fetch_wikipedia_data: {e}")
+        return {"text": f"An error occurred while fetching data for '{topic}'.", "images": []}
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -97,19 +87,14 @@ def index():
         
         try:
             data = fetch_wikipedia_data(topic)
-            if not data['text'] or data['text'] == "An error occurred while fetching data.":
-                return render_template('index.html', 
-                                    error=f"No information found for '{topic}'. Please try another search term.")
-            
-            print(f"Found {len(data['images'])} images for topic: {topic}")  # Debug info
             return render_template('index.html', topic=topic, data=data)
-            
         except Exception as e:
             print(f"Error processing request: {e}")
-            return render_template('index.html', 
-                                error="An error occurred. Please try again with a different search term.")
+            return render_template('index.html', error="An error occurred. Please try again.")
     
     return render_template('index.html')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Use environment variables for configuration
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)

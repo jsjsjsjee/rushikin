@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rushik Search</title>
+    <style>
+        /* Reset and Box-sizing */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* Body Styling */
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #333;
+            padding: 20px;
+        }
+
+        /* Container for Main Content */
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 1200px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        /* Header */
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 30px;
+            background: linear-gradient(45deg, #1a2a6c, #b21f1f, #fdbb2d);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-weight: 800;
+            letter-spacing: 2px;
+        }
+
+        /* Form Styling */
+        form {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        form input {
+            width: 70%;
+            padding: 15px 25px;
+            font-size: 1.1rem;
+            border: 2px solid transparent;
+            border-radius: 50px;
+            background: linear-gradient(#fff, #fff) padding-box,
+                        linear-gradient(45deg, #667eea, #764ba2) border-box;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        form input:focus {
+            outline: none;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.25);
+            transform: translateY(-2px);
+        }
+
+        form button {
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: #fff;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        form button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(45deg, #764ba2, #667eea);
+        }
+
+        /* Results Section */
+        .result {
+            text-align: left;
+            margin-top: 30px;
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: #2d3436;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Image Gallery */
+        .images {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+            padding: 20px;
+        }
+
+        .image-container {
+            position: relative;
+            width: 100%;
+            padding-bottom: 75%; /* 4:3 Aspect Ratio */
+            overflow: hidden;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            background: #f5f5f5;
+            cursor: pointer;
+        }
+
+        .image-container img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: white;
+            transition: all 0.3s ease;
+            padding: 10px;
+        }
+
+        .image-container:hover img {
+            transform: scale(1.05);
+        }
+
+        .image-container::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 30px;
+            height: 30px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            transform: translate(-50%, -50%);
+        }
+
+        .image-container.loaded::before {
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        /* Error Message */
+        .error {
+            color: #ff4757;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            font-weight: bold;
+            padding: 10px 20px;
+            background: rgba(255, 71, 87, 0.1);
+            border-radius: 8px;
+            display: inline-block;
+        }
+
+        /* Topic Heading */
+        h2 {
+            color: #2d3436;
+            margin: 20px 0;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            form input {
+                width: 60%;
+            }
+            form button {
+                width: 30%;
+            }
+            .images {
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 15px;
+            }
+            form input {
+                width: 50%;
+            }
+            form button {
+                width: 40%;
+            }
+            h1 {
+                font-size: 2rem;
+            }
+            .images {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Rushik Search</h1>
+        <form action="/" method="POST">
+            <input type="text" name="topic" placeholder="Search for a topic..." required>
+            <button type="submit">Search</button>
+        </form>
+
+        {% if error %}
+            <div class="error">{{ error }}</div>
+        {% endif %}
+
+        {% if topic %}
+            <h2>Results for: "{{ topic }}"</h2>
+            <div class="result">
+                <p>{{ data.text | safe }}</p>
+            </div>
+            {% if data.images %}
+                <div class="images">
+                    {% for img in data.images %}
+                        <div class="image-container">
+                            <img 
+                                src="{{ img }}" 
+                                alt="Image related to {{ topic }}" 
+                                onerror="this.parentElement.style.display='none'"
+                                onload="this.parentElement.classList.add('loaded')"
+                            >
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p>No images available for this topic.</p>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    <script>
+        // Make images clickable to view full size
+        document.querySelectorAll('.image-container').forEach(container => {
+            container.addEventListener('click', () => {
+                const img = container.querySelector('img');
+                window.open(img.src, '_blank');
+            });
+        });
+
+        // Fade in images when loaded
+        document.querySelectorAll('.image-container img').forEach(img => {
+            if (img.complete) {
+                img.parentElement.classList.add('loaded');
+            }
+        });
+    </script>
+</body>
+</html>
